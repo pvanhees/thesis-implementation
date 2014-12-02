@@ -1,0 +1,9 @@
+{
+  "nodes":[
+          {"id":"id", "properties":{"weight": 2}},
+          {"id":"id2", "properties":{"weight": 3}}
+        ],
+  "edges":[
+          {"id":"idE", "source":"id", "target":"id2", "properties":{"weight":4}}
+        ]
+}
