@@ -66,16 +66,16 @@ d3.sedd = function() {
   };
 
   sedd.link = function() {
-    var curvature = .5;
+    var curvature = .2;
 
     function link(d) {
       var source = nodes.get(d.source);
       var target = nodes.get(d.target);
-      var x0 = source.x + source.dx,
+      var x0 = source.x,
           x1 = target.x,
-          xi = d3.interpolateNumber(x0, x1),
-          //console.log(x0
-          x2 = xi(curvature),
+          xi = d3.scale.linear().range([x0,x1]).domain([0,1]);
+          console.log(x0  + "   " + x1 + "    " + xi(1));
+      var x2 = xi(curvature),
           x3 = xi(1 - curvature),
           y0 = source.y + d.sy + d.dy / 2,
           y1 = target.y + d.ty + d.dy / 2;
@@ -123,15 +123,6 @@ d3.sedd = function() {
     });
   }
 
-  function translateFromRangeToRange(value,leftMin,leftMax,rightMin,rightMax) {
-    var leftSpan = leftMax - leftMin;
-    var rightSpan = rightMax - rightMin;
-
-    var valueScaled = (value - leftMin) / leftSpan
-
-    return rightMin + (valueScaled * rightSpan)
-  }
-
   // Iteratively assign the breadth (x-position) for each node.
   // Nodes are assigned the maximum breadth of incoming neighbors plus one;
   // nodes with no incoming links are assigned breadth zero, while
@@ -143,35 +134,18 @@ d3.sedd = function() {
     while (remainingNodes.length) {
       nextNodes = [];
       remainingNodes.forEach(function(node) {
-        node.x = translateFromRangeToRange(node.properties.x, 0,35, 0, width);
-        console.log(node.x);
+        scale = d3.scale.linear().rangeRound([1,size[0]]).domain([1,35]);
+        node.x = scale(node.properties.x);
+        //console.log(size[0] + "  " + node.x);
         node.dx = node.properties.weight;
       });
       remainingNodes = nextNodes;
     }
 
     //
-    //moveSinksRight(x);
     //TODO the nodewidth is subtracted from the size param, temporary fixed value
-    scaleNodeBreadths((size[0] - nodeWidth));
+    //scaleNodeBreadths((size[0] - nodeWidth));
   }
-
-  function moveSourcesRight() {
-    nodes.forEach(function(key,node) {
-      if (!node.targetLinks.length) {
-        node.x = d3.min(node.sourceLinks, function(d) { return d.target.x; }) - 1;
-      }
-    });
-  }
-
-  function moveSinksRight(x) {
-    nodes.forEach(function(key,node) {
-      if (!node.sourceLinks.length) {
-        node.x = x - 1;
-      }
-    });
-  }
-
   function scaleNodeBreadths(kx) {
     nodes.forEach(function(key,node) {
       node.x *= kx;
@@ -187,12 +161,12 @@ d3.sedd = function() {
 
     //
     initializeNodeDepth();
-    resolveCollisions();
+    //resolveCollisions();
     for (var alpha = 1; iterations > 0; --iterations) {
-      relaxRightToLeft(alpha *= .99);
-      resolveCollisions();
-      relaxLeftToRight(alpha);
-      resolveCollisions();
+      //relaxRightToLeft(alpha *= .99);
+      //resolveCollisions();
+      //relaxLeftToRight(alpha);
+      //resolveCollisions();
     }
 
     function initializeNodeDepth() {
