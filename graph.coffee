@@ -63,3 +63,5 @@ class @JsonGraph
       matrix.push(row)
     matrix
               
+  asJson: -> 
+    @json

@@ -1,1 +1,0 @@
-why is there a difference in thickness between drawing the image with selected sequences and drawing the whole diagram? (difference when using drawselectedsequence function and when using createPgraphics)

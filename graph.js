@@ -113,6 +113,10 @@
       return matrix;
     };
 
+    JsonGraph.prototype.asJson = function() {
+      return this.json;
+    };
+
     return JsonGraph;
 
   })();

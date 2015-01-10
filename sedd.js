@@ -1,19 +1,29 @@
 d3.sedd = function() {
   var sedd = {},
       nodeWidth = 24,
+      maxNodeHeight = 10,
       nodePadding = 8,
       size = [1, 1],
       nodesL = [],
       nodes = d3.map(),
-      links = [];
-      groups = [];
+      links = [],
+      categories = [],
+      groups = [],
+      yPositions = d3.map(),
+      orderedCategories = [],
       positionAmount = 0;
 
-  //sedd.nodeWidth = function(_) {
-    //if (!arguments.length) return nodeWidth;
-    //nodeWidth = +_;
-    //return sedd;
-  //};
+  sedd.nodeWidth = function(_) {
+    if (!arguments.length) return nodeWidth;
+    nodeWidth = +_;
+    return sedd;
+  };
+
+  sedd.maxNodeHeight = function(_) {
+    if (!arguments.length) return maxNodeHeight;
+    maxNodeHeight = +_;
+    return sedd;
+  };
 
   sedd.nodePadding = function(_) {
     if (!arguments.length) return nodePadding;
@@ -24,6 +34,12 @@ d3.sedd = function() {
   sedd.nodes = function(_) {
     if (!arguments.length) return nodesL;
     nodesL = _;
+    nodes.forEach(function(node) {
+      var category = node.properties.category;
+      if (categories.indexOf(category) === -1) {
+        categories.push(category);
+      }
+    });
     return sedd;
   };
 
@@ -36,6 +52,16 @@ d3.sedd = function() {
   sedd.size = function(_) {
     if (!arguments.length) return size;
     size = _;
+    return sedd;
+  };
+
+  sedd.yPositions = function() {
+    return yPositions;
+  }
+
+  sedd.orderedCategories = function(_) {
+    if(!arguments.length) return orderedCategories;
+    orderedCategories = _;
     return sedd;
   };
 
@@ -55,6 +81,7 @@ d3.sedd = function() {
     computeNodeLinks();
     computeNodeValues();
     computeNodeBreadths();
+    computeYPositions();
     computeNodeDepths(iterations);
     computeLinkDepths();
     return sedd;
@@ -71,18 +98,19 @@ d3.sedd = function() {
     function link(d) {
       var source = nodes.get(d.source);
       var target = nodes.get(d.target);
-      var x0 = source.x,
+      var srcHeight = nodes.get(d.source).properties.weight;
+      var destHeight = nodes.get(d.target).properties.weight;
+      var x0 = source.x + nodeWidth,
           x1 = target.x,
-          xi = d3.scale.linear().range([x0,x1]).domain([0,1]);
-          console.log(x0  + "   " + x1 + "    " + xi(1));
-      var x2 = xi(curvature),
-          x3 = xi(1 - curvature),
-          y0 = source.y + d.sy + d.dy / 2,
-          y1 = target.y + d.ty + d.dy / 2;
+          //xi = d3.scale.linear().range([x0,x1]).domain([0,1]);
+      //var x2 = xi(curvature),
+          //x3 = xi(1 - curvature),
+          y0 = source.y + srcHeight /2,
+          y1 = target.y + destHeight /2;
       return "M" + x0 + "," + y0
-           + "C" + x2 + "," + y0
-           + " " + x3 + "," + y1
-           + " " + x1 + "," + y1;
+           + "L" + x1 + "," + y1
+           //+ " " + x3 + "," + y1
+           //+ " " + x1 + "," + y1;
     }
 
     link.curvature = function(_) {
@@ -105,8 +133,6 @@ d3.sedd = function() {
     links.forEach(function(link) {
       var source = link.source,
           target = link.target;
-      //if (typeof source === "number") source = link.source = nodes[link.source];
-      //if (typeof target === "number") target = link.target = nodes[link.target];
           var n = nodes.get(link.source)
           if(typeof n === 'undefined'){
             alert(link.source);
@@ -119,14 +145,12 @@ d3.sedd = function() {
   // Compute the value (size) of each node by getting their weight.
   function computeNodeValues() {
     nodes.forEach(function(key,node) {
-      node.value = node.properties.weight
+      //node.value = Math.min(maxNodeHeight,node.properties.weight);
+      node.value = node.properties.weight;
     });
   }
 
-  // Iteratively assign the breadth (x-position) for each node.
-  // Nodes are assigned the maximum breadth of incoming neighbors plus one;
-  // nodes with no incoming links are assigned breadth zero, while
-  // nodes with no outgoing links are assigned the maximum breadth.
+  //scale the x-positions of the nodes according to the width of the visualization
   function computeNodeBreadths() {
     var remainingNodes = nodes.values(),
         nextNodes
@@ -134,23 +158,40 @@ d3.sedd = function() {
     while (remainingNodes.length) {
       nextNodes = [];
       remainingNodes.forEach(function(node) {
-        scale = d3.scale.linear().rangeRound([1,size[0]]).domain([1,35]);
-        node.x = scale(node.properties.x);
-        //console.log(size[0] + "  " + node.x);
-        node.dx = node.properties.weight;
+        node.x = xScale(node.properties.x);
+        node.dx = nodeWidth;
       });
       remainingNodes = nextNodes;
     }
+  }
 
-    //
-    //TODO the nodewidth is subtracted from the size param, temporary fixed value
-    //scaleNodeBreadths((size[0] - nodeWidth));
+  sedd.yScale = function yScale(d){
+    var scale = d3.scale.linear().rangeRound([10,size[1]]).domain([0,orderedCategories.length]);
+    return scale(d);
   }
-  function scaleNodeBreadths(kx) {
-    nodes.forEach(function(key,node) {
-      node.x *= kx;
+
+  function xScale(d){
+    var scale = d3.scale.linear().rangeRound([1,size[0] - nodeWidth]).domain([0,35]);
+    return scale(d);
+  }
+
+  function computeYPositions() {
+    var offset = 10
+    var drawingHeight = size[1] - groups.length * offset;
+    var scale = d3.scale.linear().rangeRound([10,drawingHeight]).domain([0,orderedCategories.length]);
+
+    orderedCategories.forEach(function(d) {
+      var baseValue = scale(orderedCategories.indexOf(d));
+      var groupNb = 0;
+      for (i = 0; i < groups.length; i++) {
+        if (groups[i].indexOf(d) !== -1){
+          groupNb = i;
+        }
+      }
+      var value = (baseValue + (groupNb * offset));
+      yPositions.set(d, value);
     });
-  }
+   }
 
   function computeNodeDepths(iterations) {
     var nodesByBreadth = d3.nest()
@@ -161,14 +202,6 @@ d3.sedd = function() {
 
     //
     initializeNodeDepth();
-    //resolveCollisions();
-    for (var alpha = 1; iterations > 0; --iterations) {
-      //relaxRightToLeft(alpha *= .99);
-      //resolveCollisions();
-      //relaxLeftToRight(alpha);
-      //resolveCollisions();
-    }
-
     function initializeNodeDepth() {
       var ky = d3.min(nodesByBreadth, function(nodes) {
         return (size[1] - (nodes.length - 1) * nodePadding) / d3.sum(nodes, value);
@@ -176,83 +209,18 @@ d3.sedd = function() {
 
       nodesByBreadth.forEach(function(nodes) {
         nodes.forEach(function(node) {
-          node.y = groups.indexOf(node.properties.y);
-          node.dy = node.value * ky;
+          var index = orderedCategories.indexOf(node.properties.category);
+          if (index === -1){
+            index = orderedCategories.length;
+          }
+          node.y = yPositions.get(node.properties.category);
+          //node.dy = node.value * ky;
         });
       });
 
       links.forEach(function(link) {
         link.dy = link.properties.weight * ky;
       });
-    }
-
-    function relaxLeftToRight(alpha) {
-      nodesByBreadth.forEach(function(nodes, breadth) {
-        nodes.forEach(function(node) {
-          if (node.targetLinks.length) {
-            var y = d3.sum(node.targetLinks, weightedSource) 
-                    / d3.sum(node.targetLinks, function(d){return d.properties.weight});
-            node.y += (y - center(node)) * alpha;
-          }
-        });
-      });
-
-      function weightedSource(link) {
-        return center(link.source) * link.properties.weight;
-      }
-    }
-
-    function relaxRightToLeft(alpha) {
-      nodesByBreadth.slice().reverse().forEach(function(nodes) {
-        nodes.forEach(function(node) {
-          if (node.sourceLinks.length) {
-            var y = d3.sum(node.sourceLinks, weightedTarget) 
-                    / d3.sum(node.sourceLinks, function(d) {return d.properties.weight;});
-            node.y += (y - center(node)) * alpha;
-          }
-        });
-      });
-
-      function weightedTarget(link) {
-        return center(nodes.get(link.target)) * link.properties.weight;
-      }
-    }
-
-    function resolveCollisions() {
-      nodesByBreadth.forEach(function(nodes) {
-        var node,
-            dy,
-            y0 = 0,
-            n = nodes.length,
-            i;
-
-        // Push any overlapping nodes down.
-        nodes.sort(ascendingDepth);
-        for (i = 0; i < n; ++i) {
-          node = nodes[i];
-          dy = y0 - node.y;
-          if (dy > 0) node.y += dy;
-          y0 = node.y + node.dy + nodePadding;
-        }
-
-        // If the bottommost node goes outside the bounds, push it back up.
-        dy = y0 - nodePadding - size[1];
-        if (dy > 0) {
-          y0 = node.y -= dy;
-
-          // Push any overlapping nodes back up.
-          for (i = n - 2; i >= 0; --i) {
-            node = nodes[i];
-            dy = node.y + node.dy + nodePadding - y0;
-            if (dy > 0) node.y -= dy;
-            y0 = node.y;
-          }
-        }
-      });
-    }
-
-    function ascendingDepth(a, b) {
-      return a.y - b.y;
     }
   }
 
