@@ -53,6 +53,10 @@
       }
     }
 
+    JsonGraph.prototype.getDataProperties = function() {
+      return this.json.dataproperties;
+    };
+
     JsonGraph.prototype.getNodes = function() {
       return nodes;
     };

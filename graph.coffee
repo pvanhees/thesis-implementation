@@ -13,6 +13,10 @@ class @JsonGraph
       edgeProperties[edge.id] = edge.properties
     for node in json.nodes
       nodeProperties[node.id] = node.properties
+  
+  #returns the data properties
+  getDataProperties: ->
+    @json.dataproperties
 
   #returns list of node id's 
   getNodes: -> 

@@ -1,16 +1,11 @@
-xobj = new XMLHttpRequest();
-xobj.open("GET", 'graph.json',true);
-xobj.setRequestHeader("Content-type", "application/json");
-xobj.onreadystatechange = function() {
-  if(xobj.readyState == 4 && xobj.status == 200){
-    var json = JSON.parse(xobj.responseText);
-    draw(json);
-  }
-}
-xobj.send();
-
-function draw(json) {
+function drawChord(json) {
   graph = new JsonGraph(json);
+
+  //if (!checkIfDataCanBeDisplayed3(graph.getDataProperties())) {
+    //d3.select("body").append("p").html("The selected data is not fit for this visualisation");
+    //return false;
+  //}
+
   var width = 1200,
   height = 1200,
   outerRadius = Math.min(width, height) / 2 - 10,
@@ -30,7 +25,7 @@ function draw(json) {
   var path = d3.svg.chord()
     .radius(innerRadius);
    
-  var svg = d3.select("body").append("svg")
+  var svg = d3.select("#visualisations").append("svg")
     .attr("width", width)
     .attr("height", height)
     .append("g")
@@ -101,4 +96,13 @@ function draw(json) {
       && p.target.index != i;
     });
   }
+}
+
+function checkIfDataCanBeDisplayed3(dataproperties) {
+  if((dataproperties.indexOf("graph") != -1) && 
+      (dataproperties.indexOf("weighted") != -1) &&
+      (dataproperties.indexOf("directed") == -1)){
+    return true;
+  } else {return false;}
+  
 }

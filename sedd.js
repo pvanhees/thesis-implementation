@@ -1,262 +1,207 @@
-d3.sedd = function() {
-  var sedd = {},
-      nodeWidth = 24,
+var graph,
+    cutoff,
+    sedd;
+
+function drawSedd(data,cutoff){
+  graph = data.asJson();
+
+  //if (!checkIfDataCanBeDisplayed2(graph.dataproperties)) {
+    //d3.select("body").append("p").html("The selected data is not fit for this visualisation");
+    //return false;
+  //}
+  var margin = {top: 1, right: 1, bottom: 6, left: 1},
+      categoryWidth = 25,
+      groupWidth = 80,
       maxNodeHeight = 10,
-      nodePadding = 8,
-      size = [1, 1],
-      nodesL = [],
-      nodes = d3.map(),
-      links = [],
-      categories = [],
-      groups = [],
-      yPositions = d3.map(),
-      orderedCategories = [],
-      positionAmount = 0;
+      separatorHeight = 10,
+      width = 1500 - margin.left - margin.right,
+      height = 500 - margin.top - margin.bottom,
+      colors = ["#EC008C","#00AEEF"];
 
-  sedd.nodeWidth = function(_) {
-    if (!arguments.length) return nodeWidth;
-    nodeWidth = +_;
-    return sedd;
-  };
 
-  sedd.maxNodeHeight = function(_) {
-    if (!arguments.length) return maxNodeHeight;
-    maxNodeHeight = +_;
-    return sedd;
-  };
+  var formatNumber = d3.format(",.0f"),
+      format = function(d) { return formatNumber(d) + " TWh"; };
+      //color = d3.scale.category20();
 
-  sedd.nodePadding = function(_) {
-    if (!arguments.length) return nodePadding;
-    nodePadding = +_;
-    return sedd;
-  };
+  var svg = d3.select("#visualisations").append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  sedd.nodes = function(_) {
-    if (!arguments.length) return nodesL;
-    nodesL = _;
-    nodes.forEach(function(node) {
-      var category = node.properties.category;
-      if (categories.indexOf(category) === -1) {
-        categories.push(category);
-      }
-    });
-    return sedd;
-  };
+  var categories = ["A","G","I","L","V","C","M","S","T","P","F","W","Y","H","K","R","D","E","N","Q",".","X"];
+  var groups = [];
+  groups.push(["A","G","I","L","V"]);
+  groups.push(["C","M","S","T"]);
+  groups.push(["P"]);
+  groups.push(["F","W","Y"]);
+  groups.push(["H","K","R"]);
+  groups.push(["D","E","N","Q"]);
+  groups.push(["."]);
+  groups.push(["X"]);
 
-  sedd.links = function(_) {
-    if (!arguments.length) return links;
-    links = _;
-    return sedd;
-  };
+  var groupNames = d3.map();
+  groupNames.set(0,"aliphatic");
+  groupNames.set(1,"OH or Sulfur");
+  groupNames.set(2,"cyclic");
+  groupNames.set(3,"aromatic");
+  groupNames.set(4,"basic");
+  groupNames.set(5,"acidic");
+  groupNames.set(6,"blank");
+  groupNames.set(7,"unknown");
 
-  sedd.size = function(_) {
-    if (!arguments.length) return size;
-    size = _;
-    return sedd;
-  };
+  sedd = d3.sedd()
+      .nodePadding(10)
+      .nodeWidth(10)
+      .maxNodeHeight(maxNodeHeight)
+      .orderedCategories(categories)
+      .groups(groups)
+      .size([width - groupWidth - categoryWidth , height]);
 
-  sedd.yPositions = function() {
-    return yPositions;
-  }
+  var path = sedd.link();
 
-  sedd.orderedCategories = function(_) {
-    if(!arguments.length) return orderedCategories;
-    orderedCategories = _;
-    return sedd;
-  };
+  sedd.nodes(graph.nodes)
+      .links(graph.edges)
+      .layout(32);
 
-  sedd.groups = function(_) {
-    if(!arguments.length) return groups;
-    groups = _;
-    return sedd;
-  };
+  var cutoffWeight = calculateCutoffWeight(cutoff);
+  
+    // append gray rectangle for background
+  svg.append("g").append("rect")
+      .attr("height", height)
+      .attr("width",width)
+      .attr("transform","translate(" + groupWidth + ")")
+      .style("stroke", "gray")
+      .style("opacity", "0.1");
 
-  sedd.positionAmount = function(_) {
-    if(!arguments.length) return positionAmount;
-    positionAmount = _;
-    return sedd;
-  };
+    // draw white rectangles as separator for groups
+  svg.append("g").selectAll(".separator")
+      .data(groups)
+      .enter().append("g")
+      .attr("transform", function (d) {
+        lastCat = d[d.length-1];
+        y = maxNodeHeight + sedd.yPositions().get(lastCat);
+        return "translate(0," + y + ")";
+      })
+      .append("rect")
+      .attr("height", separatorHeight)
+      .attr("width" , width)
+      .style("stroke", "white")
+      .style("fill" , "white")
 
-  sedd.layout = function(iterations) {
-    computeNodeLinks();
-    computeNodeValues();
-    computeNodeBreadths();
-    computeYPositions();
-    computeNodeDepths(iterations);
-    computeLinkDepths();
-    return sedd;
-  };
+  var link = svg.append("g")
+      .attr("transform","translate(" + (categoryWidth + groupWidth) + ")")
+      .selectAll(".link")
+      .data(graph.edges.filter(function (e) { return e.properties.weight > cutoffWeight}))
+      .enter().append("path")
+      .attr("class", "link")
+      .attr("d", path)
+      .style("stroke-width", function(e) { return e.properties.weight * 2; })
+      .style("stroke", function(e) { return d3.rgb(colors[e.properties.group]);})
+      .style("opacity", "0.7")
+      .style("cursor","pointer")
+      .on("mouseenter", selectSequence)
+      .on("mouseleave", function (e) { redrawWithCutoff(cutoff);});
 
-  sedd.relayout = function() {
-    computeLinkDepths();
-    return sedd;
-  };
 
-  sedd.link = function() {
-    var curvature = .2;
-
-    function link(d) {
-      var source = nodes.get(d.source);
-      var target = nodes.get(d.target);
-      var srcHeight = nodes.get(d.source).properties.weight;
-      var destHeight = nodes.get(d.target).properties.weight;
-      var x0 = source.x + nodeWidth,
-          x1 = target.x,
-          //xi = d3.scale.linear().range([x0,x1]).domain([0,1]);
-      //var x2 = xi(curvature),
-          //x3 = xi(1 - curvature),
-          y0 = source.y + srcHeight /2,
-          y1 = target.y + destHeight /2;
-      return "M" + x0 + "," + y0
-           + "L" + x1 + "," + y1
-           //+ " " + x3 + "," + y1
-           //+ " " + x1 + "," + y1;
-    }
-
-    link.curvature = function(_) {
-      if (!arguments.length) return curvature;
-      curvature = +_;
-      return link;
-    };
-
-    return link;
-  };
-
-  // Populate the sourceLinks and targetLinks for each node.
-  // Also, if the source and target are not objects, assume they are indices.
-  function computeNodeLinks() {
-    nodesL.forEach(function(node) {
-      node.sourceLinks = [];
-      node.targetLinks = [];
-      nodes.set(node.id,node);
-    });
-    links.forEach(function(link) {
-      var source = link.source,
-          target = link.target;
-          var n = nodes.get(link.source)
-          if(typeof n === 'undefined'){
-            alert(link.source);
-          }
-          n.sourceLinks.push(link);
-          nodes.get(link.target).targetLinks.push(link);
-    });
-  }
-
-  // Compute the value (size) of each node by getting their weight.
-  function computeNodeValues() {
-    nodes.forEach(function(key,node) {
-      //node.value = Math.min(maxNodeHeight,node.properties.weight);
-      node.value = node.properties.weight;
-    });
-  }
-
-  //scale the x-positions of the nodes according to the width of the visualization
-  function computeNodeBreadths() {
-    var remainingNodes = nodes.values(),
-        nextNodes
-
-    while (remainingNodes.length) {
-      nextNodes = [];
-      remainingNodes.forEach(function(node) {
-        node.x = xScale(node.properties.x);
-        node.dx = nodeWidth;
-      });
-      remainingNodes = nextNodes;
-    }
-  }
-
-  sedd.yScale = function yScale(d){
-    var scale = d3.scale.linear().rangeRound([10,size[1]]).domain([0,orderedCategories.length]);
-    return scale(d);
-  }
-
-  function xScale(d){
-    var scale = d3.scale.linear().rangeRound([1,size[0] - nodeWidth]).domain([0,35]);
-    return scale(d);
-  }
-
-  function computeYPositions() {
-    var offset = 10
-    var drawingHeight = size[1] - groups.length * offset;
-    var scale = d3.scale.linear().rangeRound([10,drawingHeight]).domain([0,orderedCategories.length]);
-
-    orderedCategories.forEach(function(d) {
-      var baseValue = scale(orderedCategories.indexOf(d));
-      var groupNb = 0;
-      for (i = 0; i < groups.length; i++) {
-        if (groups[i].indexOf(d) !== -1){
-          groupNb = i;
-        }
-      }
-      var value = (baseValue + (groupNb * offset));
-      yPositions.set(d, value);
-    });
-   }
-
-  function computeNodeDepths(iterations) {
-    var nodesByBreadth = d3.nest()
-        .key(function(d) { return d.x; })
-        .sortKeys(d3.ascending)
-        .entries(nodes.values())
-        .map(function(d) { return d.values; });
-
-    //
-    initializeNodeDepth();
-    function initializeNodeDepth() {
-      var ky = d3.min(nodesByBreadth, function(nodes) {
-        return (size[1] - (nodes.length - 1) * nodePadding) / d3.sum(nodes, value);
-      });
-
-      nodesByBreadth.forEach(function(nodes) {
-        nodes.forEach(function(node) {
-          var index = orderedCategories.indexOf(node.properties.category);
-          if (index === -1){
-            index = orderedCategories.length;
-          }
-          node.y = yPositions.get(node.properties.category);
-          //node.dy = node.value * ky;
+  var node = svg.append("g")
+      .attr("transform","translate(" + (categoryWidth + groupWidth) + ")")
+      .selectAll(".node")
+      .data(graph.nodes.filter(function (d) { return d.properties.weight > cutoffWeight}))
+    .enter().append("g")
+      .attr("class", "node")
+      .attr("transform", function(d) { 
+          return "translate(" + d.x + "," + (d.y - d.properties.weight / 2) + ")"; 
         });
-      });
 
-      links.forEach(function(link) {
-        link.dy = link.properties.weight * ky;
+  //"#FFEC008C"
+  node.append("rect")
+      .attr("height", function(d) { return d.properties.weight * 2; })
+      .attr("width", function(d) { return d.dx}) // random chosen value to test
+      .style("stroke", function(e) { return d3.rgb(colors[e.properties.group]);})
+      .style("fill", function(e) { return d3.rgb(colors[e.properties.group]);})
+      .style("opacity", "0.7")
+    .append("title")
+      .text(function(d) { return d.id + "\n" + format(d.properties.weight); });
+
+  svg.append("g").selectAll(".category")
+      .data(categories)
+      .enter()
+      .append("text")
+      .attr("x", groupWidth + 4)
+      .attr("y", function(d) {return sedd.yPositions().get(d) + 5;})
+      .attr("font-size","10px")
+      .attr("text-anchor", "start")
+      .text(function(d) {return d;});
+
+  svg.append("g").selectAll(".group")
+      .data(groupNames.keys())
+      .enter()
+      .append("text")
+      .attr("x", groupWidth - 3)
+      .attr("y", function(d) {
+        var firstCat = groups[d][0];
+        return sedd.yPositions().get(firstCat) + 5;
+      })
+      .attr("font-size","10px")
+      .attr("text-anchor", "end")
+      .text(function(d) {return groupNames.get(d);});
+
+  //function dragmove(d) {
+   // d3.select(this).attr("transform", "translate(" + d.x + "," + (d.y = Math.max(0, Math.min(height - d.dy, d3.event.y))) + ")");
+    //sedd.relayout();
+    //link.attr("d", path);
+  //}
+}
+
+function checkIfDataCanBeDisplayed2(dataproperties) {
+  if(typeof dataproperties == "undefined" || dataproperties.length == 0) return false;
+  if((dataproperties.indexOf("graph") != -1) && 
+      (dataproperties.indexOf("weighted") != -1) &&
+      (dataproperties.indexOf("directed") != -1)){
+    return true;
+  } else {return false;}
+  
+}
+
+function selectSequence(d){
+  d3.selectAll(".link")
+    .data(graph.edges)
+    //.style("opacity", function (e) {return sequenceContainsSequences(e,d) ? "0.7" : "0"; });
+    .style("stroke-width", function(e) { 
+        var scale = d3.scale.linear().rangeRound([0,e.properties.weight]).domain([0,graph.dataproperties.datasize]);
+        var value = scale(sequenceContainsSequences(e,d));
+        return value ; 
       });
+}
+
+function sequenceContainsSequences(edge, selectedEdge){
+  if(edge.properties.group != selectedEdge.properties.group){ 
+    return 0;
+  }
+  var amount = 0;
+  var selectedLength = selectedEdge.properties.sequenceIds.length;
+  for(i = 0; i < selectedLength; i++){
+    if(edge.properties.sequenceIds.indexOf(selectedEdge.properties.sequenceIds[i]) > -1){
+      amount = amount + 1;
     }
   }
+  return amount;
+}
 
-  function computeLinkDepths() {
-    nodes.forEach(function(key,node) {
-      node.sourceLinks.sort(ascendingTargetDepth);
-      node.targetLinks.sort(ascendingSourceDepth);
-    });
-    nodes.forEach(function(key,node) {
-      var sy = 0, ty = 0;
-      node.sourceLinks.forEach(function(link) {
-        link.sy = sy;
-        sy += link.dy;
-      });
-      node.targetLinks.forEach(function(link) {
-        link.ty = ty;
-        ty += link.dy;
-      });
-    });
+function redrawWithCutoff(cutoff) {
+  this.cutoff = cutoff;
+  var cutoffWeight = calculateCutoffWeight(cutoff);
+  d3.selectAll(".link")
+    .data(graph.edges)
+    .style("opacity", function (e) {return e.properties.weight > cutoffWeight ? "0.7" : "0";})
+    .style("stroke-width", function(e) { return e.properties.weight * 2; })
+  d3.selectAll(".node")
+    .data(graph.nodes)
+    .style("opacity", function (e) {return e.properties.weight > cutoffWeight ? "0.7" : "0";});
+}
 
-    function ascendingSourceDepth(a, b) {
-      return a.source.y - b.source.y;
-    }
-
-    function ascendingTargetDepth(a, b) {
-      return a.target.y - b.target.y;
-    }
-  }
-
-  function center(node) {
-    return node.y + node.dy / 2;
-  }
-
-  function value(link) {
-    return link.value;
-  }
-
-  return sedd;
-};
+function calculateCutoffWeight(cutoff){
+  var cutoffScaler = d3.scale.linear().range([0,sedd.maxWeight()]).domain([0,1]);
+  return cutoffScaler(cutoff);
+}
