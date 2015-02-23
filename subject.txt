@@ -1,7 +1,0 @@
-onderzoek: hoe gaan we grafen opslaan, visualiseren en visualisaties dependent maken van de data-properties.
-
-variabiliteit in input: andere data omvormen tot graph in een framework. -> casten van data framework
-
-in thesis: uitleggen wat is framework, context: graaf data visualiseren
-
-oplossing van mijn thesis: framework gemaakt en dit uitleggen

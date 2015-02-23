@@ -1,4 +1,0 @@
-- connectie met graphstream
-- matrixgraph, incidencegraph,...?
-- UI creeeren?
-- SeDD uitwerke

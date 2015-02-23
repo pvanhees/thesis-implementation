@@ -27,7 +27,7 @@
       var json;
       var data;
       xobj = new XMLHttpRequest();
-      xobj.open("GET", 'graph.json',true);
+      xobj.open("GET", 'graph_stable.json',true);
       xobj.setRequestHeader("Content-type", "application/json");
       xobj.onreadystatechange = function() {
         if(xobj.readyState == 4 && xobj.status == 200){
