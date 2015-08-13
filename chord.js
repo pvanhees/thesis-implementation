@@ -1,10 +1,10 @@
 function drawChord(json) {
   graph = new JsonGraph(json);
 
-  //if (!checkIfDataCanBeDisplayed3(graph.getDataProperties())) {
-    //d3.select("body").append("p").html("The selected data is not fit for this visualisation");
-    //return false;
-  //}
+  if (!checkIfDataCanBeDisplayed3(graph.getDataProperties())) {
+    d3.select("body").append("p").html("The selected data is not fit for this visualisation");
+    return false;
+  }
 
   var width = 1200,
   height = 1200,
@@ -35,8 +35,6 @@ function drawChord(json) {
   svg.append("circle")
     .attr("r", outerRadius);
    
-  //d3.csv("teams.csv", function(cities) {
-  //d3.json("matrix.json", function(matrix) {
    
   // Compute the chord layout.
   layout.matrix(graph.asMatrix());
@@ -47,11 +45,6 @@ function drawChord(json) {
     .enter().append("g")
     .attr("class", "group")
     .on("mouseover", mouseover);
-   
-  // Add a mouseover title.
-  // group.append("title").text(function(d, i) {
-  // return cities[i].name + ": " + formatPercent(d.value) + " of origins";
-  // });
    
   // Add the group arc.
   var groupPath = group.append("path")
@@ -80,14 +73,6 @@ function drawChord(json) {
     .style("fill", "#035212")
     .attr("d", path);
    
-  // Add an elaborate mouseover title for each chord.
-   //chord.append("title").text(function(d) {
-   //return cities[d.source.index].name
-   //+ " → " + cities[d.target.index].name
-   //+ ": " + formatPercent(d.source.value)
-   //+ "\n" + cities[d.target.index].name
-   //+ " → " + cities[d.source.index].name
-   //+ ": " + formatPercent(d.target.value);
    //});
    
   function mouseover(d, i) {

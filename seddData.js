@@ -184,6 +184,11 @@ d3.sedd = function() {
     return scale(d);
   }
 
+  sedd.weightScale = function weightScale(e){
+    scale = d3.scale.linear().rangeRound([0.1,maxNodeHeight]).domain([0,graph.dataproperties.datasize]);
+    return scale(e);
+  }
+
   function computeYPositions() {
     var offset = 10
     var drawingHeight = size[1] - groups.length * offset;
@@ -228,7 +233,9 @@ d3.sedd = function() {
       });
 
       links.forEach(function(link) {
-        link.dy = link.properties.weight * ky;
+        //link.dy = link.properties.weight * ky;
+        seqNb = link.properties.sequenceIds.length;
+        link.dy = sedd.weightScale(seqNb);
       });
     }
   }

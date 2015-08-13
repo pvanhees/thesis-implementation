@@ -4,19 +4,21 @@ class @JsonGraph
   edgeObjects = []
   nodeProperties = {}
   edgeProperties = {}
+  firstDataset = {}
   
   constructor: (@json) ->
-    nodes = (node.id for node in json.nodes)
-    edges = (edge.id for edge in json.edges)
-    for edge in json.edges
+    firstDataset = json.datasets[0]
+    nodes = (node.id for node in firstDataset.nodes)
+    edges = (edge.id for edge in firstDataset.edges)
+    for edge in firstDataset.edges
       edgeObjects.push({"id":edge.id, "source": edge.source, "target": edge.target})
       edgeProperties[edge.id] = edge.properties
-    for node in json.nodes
+    for node in firstDataset.nodes
       nodeProperties[node.id] = node.properties
   
   #returns the data properties
   getDataProperties: ->
-    @json.dataproperties
+    firstDataset.dataproperties
 
   #returns list of node id's 
   getNodes: -> 
@@ -51,11 +53,11 @@ class @JsonGraph
   # the list of nodes in this graph class.
   asMatrix: (valueProperty="PropertyEdgeAmount") ->
     matrix = []
-    for nodeR in this.json.nodes
+    for nodeR in firstDataset.nodes
       row = []
-      for nodeC in this.json.nodes
+      for nodeC in firstDataset.nodes
         amount = 0
-        for edge in this.json.edges
+        for edge in firstDataset.edges
           if (edge.source is nodeR.id and edge.target is nodeC.id) or 
              (edge.source is nodeC.id and edge.target is nodeR.id)
               
@@ -68,4 +70,4 @@ class @JsonGraph
     matrix
               
   asJson: -> 
-    @json
+    firstDataset
